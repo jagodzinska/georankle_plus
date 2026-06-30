@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      1.2.0
-// @description  Funktioniert für ZWEI Spiele: GeoRankle UND GeoPaint. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg). Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber beide Spiele ab.
+// @version      1.3.0
+// @description  Funktioniert für DREI Spiele: GeoRankle, GeoPaint UND GeoDecide. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg). Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber alle drei Spiele ab.
 // @author       jago/claude
 // @license      MIT
 // @match        https://geotrivia.com/*
@@ -15,8 +15,8 @@
   'use strict';
   if (window.top !== window.self) return; // nicht in Ad-iframes laufen
 
-  // Gilt für ZWEI Spiele: GeoRankle (Lösungsvergleich) und GeoPaint. Beide
-  // rendern am Ende bereits ALLE Lösungsboxen in einem horizontalen Scroll-
+  // Gilt für DREI Spiele: GeoRankle (Lösungsvergleich), GeoPaint und GeoDecide.
+  // Alle rendern am Ende bereits ALLE Lösungsboxen in einem horizontalen Scroll-
   // Snap-Karussell mit identischer Klassenkombination snap-x + snap-mandatory +
   // no-scrollbar (die Kinder sind die einzelnen Boxen, w-full flex-none
   // snap-start). Statt DOM umzubauen, kippen wir das Karussell per CSS in eine
@@ -39,7 +39,7 @@
       scroll-snap-align: none !important;
     }
     /* Pfeil-/Punkt-Navigation ausblenden (zeigt jetzt eh alles).
-       GeoRankle: "... analysis page", GeoPaint: "... solution page". */
+       GeoRankle: "... analysis page", GeoPaint & GeoDecide: "... solution page". */
     div:has(> button[aria-label="Previous analysis page"]),
     div:has(> button[aria-label="Next analysis page"]),
     div:has(> button[aria-label="Previous solution page"]),
