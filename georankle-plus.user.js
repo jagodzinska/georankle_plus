@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      1.1.0
-// @description  Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (GeoRankle-Lösungsvergleich & GeoPaint).
+// @version      1.2.0
+// @description  Funktioniert für ZWEI Spiele: GeoRankle UND GeoPaint. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg). Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber beide Spiele ab.
 // @author       jago/claude
 // @license      MIT
 // @match        https://geotrivia.com/*
@@ -15,10 +15,10 @@
   'use strict';
   if (window.top !== window.self) return; // nicht in Ad-iframes laufen
 
-  // Der Lösungsvergleich ("Lösungsvergleich") rendert bereits ALLE 8 Boxen in
-  // einem horizontalen Scroll-Snap-Karussell. Der einzige Container mit der
-  // Klassenkombination snap-x + snap-mandatory + no-scrollbar ist genau dieses
-  // Karussell – die Kinder sind die einzelnen Lösungsboxen (w-full flex-none
+  // Gilt für ZWEI Spiele: GeoRankle (Lösungsvergleich) und GeoPaint. Beide
+  // rendern am Ende bereits ALLE Lösungsboxen in einem horizontalen Scroll-
+  // Snap-Karussell mit identischer Klassenkombination snap-x + snap-mandatory +
+  // no-scrollbar (die Kinder sind die einzelnen Boxen, w-full flex-none
   // snap-start). Statt DOM umzubauen, kippen wir das Karussell per CSS in eine
   // vertikale Spalte; React verwaltet das DOM weiter, unsere Stylesheet-Regel
   // bleibt über Re-Renders hinweg bestehen.
