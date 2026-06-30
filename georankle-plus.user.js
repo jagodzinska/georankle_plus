@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      1.0.0
-// @description  Zeigt am Spielende alle 8 Lösungsboxen des Lösungsvergleichs untereinander statt im Links/Rechts-Karussell.
+// @version      1.1.0
+// @description  Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (GeoRankle-Lösungsvergleich & GeoPaint).
 // @author       jago/claude
 // @license      MIT
 // @match        https://geotrivia.com/*
@@ -38,9 +38,12 @@
       width: 100% !important;
       scroll-snap-align: none !important;
     }
-    /* Pfeil-/Punkt-Navigation ausblenden (zeigt jetzt eh alles) */
+    /* Pfeil-/Punkt-Navigation ausblenden (zeigt jetzt eh alles).
+       GeoRankle: "... analysis page", GeoPaint: "... solution page". */
     div:has(> button[aria-label="Previous analysis page"]),
-    div:has(> button[aria-label="Next analysis page"]) {
+    div:has(> button[aria-label="Next analysis page"]),
+    div:has(> button[aria-label="Previous solution page"]),
+    div:has(> button[aria-label="Next solution page"]) {
       display: none !important;
     }
   `;
