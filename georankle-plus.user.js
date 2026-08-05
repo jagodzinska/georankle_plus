@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      1.4.0
+// @version      1.4.1
 // @description  Funktioniert für DREI Spiele: GeoRankle, GeoPaint UND GeoDecide. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg) und markiert im Lösungsvergleich rot, welche "Ideale Wahl" gar nicht mehr wählbar war, weil die Kategorie schon in einer früheren Runde verbraucht wurde. Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber alle drei Spiele ab.
 // @author       jago/claude
 // @license      MIT
@@ -76,8 +76,32 @@
 
   const norm = (s) => s.replace(/\s+/g, ' ').trim();
 
-  // Kategoriename ohne Rangangabe ("Ø Jahrestemperatur#4" -> "ø jahrestemperatur")
-  const categoryKey = (s) => norm(s.replace(/#\s*\d+/g, '')).toLowerCase();
+  // Kategoriename ohne Rangangabe ("Ø Jahrestemperatur#4" -> "ø jahrestemperatur").
+  // Achtung: der Rang kann auch "#100+" lauten, das "+" muss mit weg – sonst
+  // passt "bevölkerungsdichte+" nie zu "bevölkerungsdichte".
+  const stripRank = (s) => norm(s.replace(/#\s*\d+\s*\+*/g, ''));
+  const categoryKey = (s) => stripRank(s).toLowerCase();
+
+  // Lange Kategorienamen werden von der Seite gekürzt ("Hauptstadtbevölker…").
+  // Solche Namen nur per Präfix vergleichen.
+  const ELLIPSIS = /(?:…|\.\.\.)$/;
+  const sameCategory = (a, b) => {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (ELLIPSIS.test(a)) return b.startsWith(a.replace(ELLIPSIS, ''));
+    if (ELLIPSIS.test(b)) return a.startsWith(b.replace(ELLIPSIS, ''));
+    return false;
+  };
+
+  // Runde, in der ich diese Kategorie schon verbraucht habe (oder undefined).
+  function roundUsedIn(usedInRound, key) {
+    const exact = usedInRound.get(key);
+    if (exact !== undefined) return exact;
+    for (const [usedKey, usedRound] of usedInRound) {
+      if (sameCategory(usedKey, key)) return usedRound;
+    }
+    return undefined;
+  }
 
   // Vom Label aus so weit hoch, bis der Container auch den Wert enthält.
   function columnFor(label) {
@@ -139,16 +163,18 @@
       const idealValue = valueOf(idealCol, ideal.el);
       const idealKey = categoryKey(idealValue);
 
-      const usedRound = usedInRound.get(idealKey);
-      if (usedRound !== undefined && idealKey !== ownKey) {
+      const usedRound = roundUsedIn(usedInRound, idealKey);
+      if (usedRound !== undefined && !sameCategory(idealKey, ownKey)) {
         ideal.el.classList.add(LABEL_CLASS);
         idealCol.classList.add(IMPOSSIBLE_CLASS);
         idealCol.title =
           `War in Runde ${round} nicht mehr wählbar – ` +
-          `"${norm(idealValue.replace(/#\s*\d+/g, ''))}" schon in Runde ${usedRound} benutzt`;
+          `"${stripRank(idealValue)}" schon in Runde ${usedRound} benutzt`;
       }
 
-      if (ownKey && !usedInRound.has(ownKey)) usedInRound.set(ownKey, round);
+      if (ownKey && roundUsedIn(usedInRound, ownKey) === undefined) {
+        usedInRound.set(ownKey, round);
+      }
     }
   }
 
