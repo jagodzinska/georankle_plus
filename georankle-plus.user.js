@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      1.4.1
-// @description  Funktioniert für DREI Spiele: GeoRankle, GeoPaint UND GeoDecide. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg) und markiert im Lösungsvergleich rot, welche "Ideale Wahl" gar nicht mehr wählbar war, weil die Kategorie schon in einer früheren Runde verbraucht wurde. Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber alle drei Spiele ab.
+// @version      1.5.0
+// @description  Funktioniert für DREI Spiele: GeoRankle, GeoPaint UND GeoDecide. Zeigt am Spielende alle Lösungsboxen untereinander statt im Links/Rechts-Karussell (Pfeile/Punkte weg) und markiert im Lösungsvergleich rot, welche "Ideale Wahl" gar nicht mehr wählbar war, weil die Kategorie schon in einer früheren Runde verbraucht wurde. Bei GeoRankle steht außerdem unter jeder Lösungsbox, welchen Rang das Land in ALLEN Kategorien des Tages hat. Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber alle drei Spiele ab.
 // @author       jago/claude
 // @license      MIT
 // @match        https://geotrivia.com/*
@@ -27,6 +27,7 @@
 
   const IMPOSSIBLE_CLASS = 'grp-impossible';
   const LABEL_CLASS = 'grp-ideal-label';
+  const RANKS_CLASS = 'grp-all-ranks';
 
   const css = `
     /* Karussell -> vertikale Liste: alle Boxen untereinander */
@@ -54,6 +55,32 @@
     .${IMPOSSIBLE_CLASS} > :not(.${LABEL_CLASS}),
     .${IMPOSSIBLE_CLASS} > :not(.${LABEL_CLASS}) * {
       color: #dc2626 !important;
+    }
+    /* Rang-Übersicht unter jeder GeoRankle-Lösungsbox */
+    /* zweispaltig, wenn Platz ist; auf dem Handy einspaltig statt abgeschnitten */
+    .${RANKS_CLASS} .grp-rank-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+      column-gap: 0.5rem;
+      row-gap: 1px;
+    }
+    .${RANKS_CLASS} .grp-rank-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.25rem;
+      min-width: 0;
+      padding: 1px 0.25rem;
+      border-radius: 0.375rem;
+    }
+    .${RANKS_CLASS} .grp-rank-cat {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .${RANKS_CLASS} .grp-rank-val {
+      flex: none;
+      white-space: nowrap;
     }
   `;
 
@@ -178,16 +205,138 @@
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Ränge des Landes in ALLEN Kategorien (nur GeoRankle)
+  //
+  // Die Seite hat die Ränge aller Tagesländer in allen Tageskategorien bereits
+  // im React-State (countryCategoryRanks), zeigt am Ende aber nur "Deine Wahl"
+  // und "Ideale Wahl". Wir lesen die Daten über den React-Fiber des Karussells
+  // aus und hängen unten in jede Lösungsbox eine Übersicht. Welche Box zu
+  // welchem Land gehört, verrät die Flagge (img alt = Ländercode, z. B. "IE").
+  // ---------------------------------------------------------------------------
+  const isGameData = (v) =>
+    !!v && typeof v === 'object' && !!v.countryCategoryRanks &&
+    !!v.categoryMeta && Array.isArray(v.categories) && Array.isArray(v.gameCountries);
+  // Verlauf = pro Runde {category, rank, countryCode, ...}
+  const isHistory = (v) =>
+    Array.isArray(v) && v.length > 0 &&
+    v.every((m) => m == null || (typeof m === 'object' && 'category' in m && 'countryCode' in m));
+
+  function fiberOf(el) {
+    for (const key in el) if (key.startsWith('__reactFiber$')) return el[key];
+    return null;
+  }
+
+  // Vom Karussell aus die Komponenten hochlaufen und deren Hooks durchsuchen.
+  // useMemo-Hooks speichern [Wert, deps]; der gemergte Datensatz der Spiel-
+  // komponente liegt so vor (bei Archiv-Tagen ist das der richtige). Rohe
+  // Store-Werte nehmen wir nur als Fallback.
+  function findGameState(el) {
+    for (let f = fiberOf(el), depth = 0; f && depth < 80; f = f.return, depth++) {
+      let data = null, rawData = null, history = null;
+      let h = f.memoizedState;
+      for (let n = 0; h && typeof h === 'object' && 'next' in h && n < 300; h = h.next, n++) {
+        const ms = h.memoizedState;
+        const memo = Array.isArray(ms) && ms.length === 2 && Array.isArray(ms[1]) ? ms[0] : undefined;
+        if (!data && isGameData(memo)) data = memo;
+        if (!rawData && isGameData(ms)) rawData = ms;
+        if (!history && isHistory(memo)) history = memo;
+      }
+      data = data || rawData || (isGameData(f.memoizedProps?.initialData) ? f.memoizedProps.initialData : null);
+      if (data) return { data, history };
+    }
+    return null;
+  }
+
+  // wie formatGeoRankleRank der Seite: ab 100 (oder ohne Wert) "#100+"
+  const formatRank = (r) =>
+    typeof r !== 'number' || !Number.isFinite(r) || r >= 100 ? '#100+' : `#${r}`;
+
+  function renderRanks(card, code, { data, history }) {
+    const ranks = data.countryCategoryRanks[code] || {};
+    const hasValues = data.countryCategoryHasValues?.[code] || {};
+    const own = history?.[data.gameCountries.indexOf(code)]?.category;
+    const ideal = data.optimalResult?.assignment?.[code]?.category;
+
+    const rows = data.categories.map((cat) => {
+      const meta = data.categoryMeta[cat] || {};
+      return {
+        cat,
+        label: `${meta.icon ? meta.icon + ' ' : ''}${meta.label || cat}`,
+        rank: hasValues[cat] === false ? '–' : formatRank(ranks[cat]),
+      };
+    });
+
+    // Nur neu zeichnen, wenn sich etwas geändert hat – sonst würde jede eigene
+    // Änderung über den MutationObserver den nächsten Durchlauf auslösen.
+    const sig = JSON.stringify([code, own, ideal, rows]);
+    let box = card.querySelector(`:scope > .${RANKS_CLASS}`);
+    if (box && box.dataset.sig === sig) return;
+    if (!box) {
+      box = document.createElement('div');
+      box.className = `${RANKS_CLASS} flex flex-col gap-1.5`;
+      card.appendChild(box);
+    }
+    box.dataset.sig = sig;
+    box.textContent = '';
+
+    const divider = document.createElement('div');
+    divider.className = 'h-px bg-border/50 w-full';
+    const grid = document.createElement('div');
+    grid.className = 'grp-rank-grid font-sans text-xs text-foreground';
+    box.append(divider, grid);
+
+    for (const row of rows) {
+      const el = document.createElement('div');
+      el.className = 'grp-rank-row';
+      const hints = [];
+      if (row.cat === own) { el.classList.add('bg-muted/40', 'font-bold'); hints.push('Deine Wahl'); }
+      if (row.cat === ideal) hints.push('Ideale Wahl');
+      el.title = row.label + (hints.length ? ` (${hints.join(', ')})` : '');
+
+      const label = document.createElement('span');
+      label.className = 'grp-rank-cat';
+      label.textContent = row.label;
+      const value = document.createElement('span');
+      value.className = 'grp-rank-val font-black';
+      value.textContent = (row.cat === ideal ? '★ ' : '') + row.rank;
+      el.append(label, value);
+      grid.appendChild(el);
+    }
+  }
+
+  function applyRanks() {
+    for (const carousel of document.querySelectorAll('div.snap-x.snap-mandatory.no-scrollbar')) {
+      const state = findGameState(carousel);
+      if (!state) continue; // GeoPaint/GeoDecide: keine Rangdaten
+      for (const img of carousel.querySelectorAll('img[alt]')) {
+        if (!state.data.countryCategoryRanks[img.alt]) continue;
+        const card = img.closest('div.bg-card');
+        if (card) renderRanks(card, img.alt, state);
+      }
+    }
+  }
+
+  function run() {
+    apply();
+    try {
+      applyRanks();
+    } catch (e) {
+      console.warn('[GeoRankle+] Rang-Übersicht fehlgeschlagen:', e);
+    }
+  }
+
   let pending = 0;
   const schedule = () => {
     clearTimeout(pending);
-    pending = setTimeout(apply, 200);
+    pending = setTimeout(run, 200);
   };
 
   schedule();
   // React baut den Endscreen nach; deshalb bei DOM-Änderungen neu auswerten.
   // Wir beobachten nur childList/characterData, unsere eigenen Klassen- und
-  // title-Änderungen lösen also keine Endlosschleife aus.
+  // title-Änderungen lösen also keine Endlosschleife aus. Die Rang-Übersicht
+  // fügt zwar Knoten ein, zeichnet aber nur bei geänderten Daten neu (sig).
   new MutationObserver(schedule).observe(document.body, {
     childList: true,
     subtree: true,
