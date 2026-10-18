@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         GeoRankle+
 // @namespace    jago/georankle-stacked-solutions
-// @version      2.0.0
+// @version      2.0.1
 // @description  Funktioniert für DREI Spiele: GeoRankle, GeoPaint UND GeoDecide. Markiert im Lösungsvergleich rot, welche "Ideale Wahl" gar nicht mehr wählbar war, weil die Kategorie schon in einer früheren Runde verbraucht wurde. Bei GeoRankle steht außerdem unter jeder Lösungsbox, welchen Rang das Land in ALLEN Kategorien des Tages hat. Aus historischen Gründen heißt das Skript "GeoRankle+", deckt aber alle drei Spiele ab. Die Lösungsboxen untereinander statt im Blätterer macht seit 2.0.0 das eigene Skript "Geotrivia Lösungen untereinander".
 // @author       jago/claude
 // @license      MIT
+// @homepageURL  https://github.com/jagodzinska/georankle_plus
+// @supportURL   https://github.com/jagodzinska/georankle_plus/issues
+// @downloadURL  https://raw.githubusercontent.com/jagodzinska/georankle_plus/main/georankle-plus.user.js
+// @updateURL    https://raw.githubusercontent.com/jagodzinska/georankle_plus/main/georankle-plus.user.js
 // @match        https://geotrivia.com/*
 // @icon         https://geotrivia.com/georankle-icon.png
 // @run-at       document-idle
